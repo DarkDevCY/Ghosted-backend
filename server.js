@@ -1,6 +1,16 @@
 const express = require("express");
 const app = express();
 const bcrypt = require("bcrypt");
+var mysql = require("mysql");
+var bodyParser = require("body-parser");
+
+var connection = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "marioskyr",
+});
+connection.connect();
 
 app.use(express.json());
 
@@ -13,10 +23,32 @@ app.get("/users", (req, res) => {
 app.post("/users", async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = { name: req.body.username, password: hashedPassword };
+    const user = {
+      name: req.body.username,
+      password: hashedPassword,
+      email: req.body.email,
+    };
     users.push(user);
     res.status(201).send();
     console.log("Successfully added User!");
+
+    // Get data into DB
+    let username = user.name;
+    let pass = user.password;
+    let mail = user.email;
+
+    var sql =
+      "INSERT INTO `ghosted`(`username`,`email`,`password`) VALUES ('" +
+      username +
+      "','" +
+      mail +
+      "','" +
+      pass +
+      "')";
+    connection.query(sql, function (err, result) {
+      if (err) throw err;
+      console.log("Shit added");
+    });
   } catch {
     res.status(500).send();
   }
