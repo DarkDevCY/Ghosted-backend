@@ -21,37 +21,48 @@ app.get("/users", (req, res) => {
 });
 
 app.post("/users", async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = {
-      name: req.body.username,
-      password: hashedPassword,
-      email: req.body.email,
-    };
-    users.push(user);
-    res.status(201).send();
-    console.log("Successfully added User!");
+  let compareUsername =
+    "SELECT * FROM ghosted WHERE username = '" + req.body.username + "'";
+  connection.query(compareUsername, async function (err, results) {
+    if (err) throw err;
+    console.log("Shit can be added");
 
-    // Get data into DB
-    let username = user.name;
-    let pass = user.password;
-    let mail = user.email;
+  if (results < 1) {
+    try {
+      const hashedPassword = await bcrypt.hash(req.body.password, 10);
+      const user = {
+        name: req.body.username,
+        password: hashedPassword,
+        email: req.body.email,
+      };
+      users.push(user);
+      res.status(201).send();
+      console.log("Successfully added User!");
 
-    var sql =
-      "INSERT INTO `ghosted`(`username`,`email`,`password`) VALUES ('" +
-      username +
-      "','" +
-      mail +
-      "','" +
-      pass +
-      "')";
-    connection.query(sql, function (err, result) {
-      if (err) throw err;
-      console.log("Shit added");
-    });
-  } catch {
-    res.status(500).send();
+      // Get data into DB
+      let username = user.name;
+      let pass = user.password;
+      let mail = user.email;
+
+      var sql =
+        "INSERT INTO `ghosted`(`username`,`email`,`password`) VALUES ('" +
+        username +
+        "','" +
+        mail +
+        "','" +
+        pass +
+        "')";
+      connection.query(sql, function (err, result) {
+        if (err) throw err;
+        console.log("Shit added");
+      });
+    } catch {
+      res.status(500).send();
+    }
+  } else {
+    console.log("Already exists");
   }
+});
 });
 
 app.post("/users/login", async (req, res) => {
