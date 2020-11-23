@@ -1,8 +1,11 @@
 const express = require("express");
-const app = express();
+const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const bodyParser = require("body-parser");
 var mysql = require("mysql");
-var bodyParser = require("body-parser");
+
+const app = express();
+app.use(bodyParser.json());
 
 var connection = mysql.createConnection({
   host: "localhost",
@@ -12,20 +15,16 @@ var connection = mysql.createConnection({
 });
 connection.connect();
 
-app.use(express.json());
-
-const users = [];
-
-app.get("/users", (req, res) => {
-  res.json(users);
+app.get("/api", (req, res) => {
+  res.json({
+    message: "Welcome to the api",
+  });
 });
 
-app.post("/users", async (req, res) => {
-  let compareUsername =
-    "SELECT * FROM ghosted WHERE username = '" + req.body.username + "'";
+app.post("/register", (req, res) => {
+  let compareUsername = `SELECT * FROM ghosted WHERE username='${req.body.username}'`;
   connection.query(compareUsername, async function (err, results) {
     if (err) throw err;
-    console.log("Shit can be added");
 
     if (results < 1) {
       try {
@@ -35,9 +34,6 @@ app.post("/users", async (req, res) => {
           password: hashedPassword,
           email: req.body.email,
         };
-        users.push(user);
-        res.status(201).send();
-        console.log("Successfully added User!");
 
         // Get data into DB
         let username = user.name;
@@ -54,7 +50,7 @@ app.post("/users", async (req, res) => {
           "')";
         connection.query(sql, function (err, result) {
           if (err) throw err;
-          console.log("Shit added");
+          console.log("User added");
         });
       } catch {
         res.status(500).send();
@@ -65,38 +61,66 @@ app.post("/users", async (req, res) => {
   });
 });
 
-app.post("/users/login", async (req, res) => {
-  //const user = users.find((user) => user.name == req.body.username);
+app.post("/login", async (req, res) => {
+  let userID = req.body.username;
 
-  const userID = req.body.username;
-  //const password = await bcrypt.hash(req.body.password, 10);
-
-  /*if (user == null) {
-    console.log("Cannot find user");
-  }
-  try {
-    if (await bcrypt.compare(req.body.password, user.password)) {
-      res.send("Success");
-      console.log("Success");
-    } else {
-      res.send("Not allowed");
-      console.log("Not allowed");
-    }
-  } catch {
-    res.status(500).send();
-  } */
   var getDataLogin = "SELECT * FROM ghosted WHERE username='" + userID + "'";
   console.log(userID);
-  console.log(req.body.password)
+  console.log(req.body.password);
   connection.query(getDataLogin, async function (err, results) {
     console.log(err, results);
-    console.log(results[0].password)
+    console.log(results[0].password);
     if (await bcrypt.compare(req.body.password, results[0].password)) {
-      console.log('Hello');
+      jwt.sign({ user: req.body.username }, "secretkey", (err, token) => {
+        res.json({
+          token: token,
+          login: true,
+        });
+        console.log(token);
+      });
     } else {
-      console.log('FML')
+      console.log("FML");
+      res.status(404).send({
+        message: "User not found!",
+      });
     }
   });
 });
+
+app.get("/api/posts", verifyToken, (req, res) => {
+  jwt.verify(req.token, "secretkey", (err, authData) => {
+    if (err) {
+      res.sendStatus(403);
+    } else {
+      res.json({
+        message: "Post created...",
+        authData: authData,
+        token: req.token,
+      });
+    }
+  });
+});
+// Format of token
+// Authorization: Bearer <accessToken>
+
+// Verify Token
+function verifyToken(req, res, next) {
+  // Get auth header value
+  const bearerHeader = req.headers["authorization"];
+  //Check if bearer is undefined
+  if (typeof bearerHeader !== "undefined") {
+    // Split at the space
+    const bearer = bearerHeader.split(" ");
+    // Get token from array
+    const bearerToken = bearer[1];
+    // Set the token
+    req.token = bearerToken;
+    // Next middleware
+    next();
+  } else {
+    // Forbidden
+    res.sendStatus(403);
+  }
+}
 
 app.listen(3000);
