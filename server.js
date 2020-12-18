@@ -9,11 +9,13 @@ app.use(bodyParser.json());
 
 var connection = mysql.createConnection({
   host: "localhost",
-  user: "root",
+  user: "",
   password: "",
-  database: "marioskyr",
+  database: "",
 });
 connection.connect();
+
+console.log("Connection acquired!");
 
 app.get("/api", (req, res) => {
   res.json({
@@ -22,8 +24,10 @@ app.get("/api", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  let compareUsername = `SELECT * FROM ghosted WHERE username='${req.body.username}'`;
-  connection.query(compareUsername, async function (err, results) {
+  let username = req.body.username;
+  let compareUsername = "SELECT * FROM ghosted WHERE username=?";
+
+  connection.query(compareUsername, [username], async function (err, results) {
     if (err) throw err;
 
     if (results < 1) {
@@ -40,51 +44,52 @@ app.post("/register", (req, res) => {
         let pass = user.password;
         let mail = user.email;
 
-        var sql =
-          "INSERT INTO `ghosted`(`username`,`email`,`password`) VALUES ('" +
-          username +
-          "','" +
-          mail +
-          "','" +
-          pass +
-          "')";
-        connection.query(sql, function (err, result) {
-          if (err) throw err;
-          console.log("User added");
-        });
+        let sqlQuery =
+          "INSERT INTO `ghosted` (`username`, `email`, `password`) VALUES (?,?,?);";
+
+        connection.query(
+          sqlQuery,
+          [username, mail, pass],
+          function (err, result) {
+            if (err) throw err;
+            console.log("User added");
+            res.status(201).send("User created");
+          }
+        );
       } catch {
         res.status(500).send();
       }
     } else {
       console.log("Already exists");
+      res.status(200).send({
+        response: "Username already exists",
+      });
     }
   });
 });
 
 app.post("/login", async (req, res) => {
   let userID = req.body.username;
+  var getDataLogin = "SELECT * FROM ghosted WHERE username=?";
 
-  var getDataLogin = "SELECT * FROM ghosted WHERE username='" + userID + "'";
-  console.log(userID);
-  console.log(req.body.password);
-  connection.query(getDataLogin, async function (err, results) {
-    console.log(err, results);
-    console.log(results[0].password);
+  connection.query(getDataLogin, [userID], async function (err, results) {
     if (await bcrypt.compare(req.body.password, results[0].password)) {
       jwt.sign({ user: req.body.username }, "secretkey", (err, token) => {
         res.json({
           token: token,
           login: true,
         });
-        console.log(token);
       });
     } else {
-      console.log("FML");
       res.status(404).send({
         message: "User not found!",
       });
     }
   });
+});
+
+app.post("/forgot/pass", async (req, res) => {
+  let email = req.body.email;
 });
 
 app.get("/api/posts", verifyToken, (req, res) => {
