@@ -246,8 +246,8 @@ app.post("/api/bookmarked", (req, res) => {
   connection.query(getID, [req.body.email], (req, res) => {
 	
 	if(ins == true) {
-	  var bookmarkINS = "INSERT INTO bookmarks (id, bookmarkID) VALUES (?,?);";
-	  connection.query(bookmarkINS, [res[0].id,bookID]);	
+	  var bookmarkINS = "INSERT INTO bookmarks (id, bookmarkID, status) VALUES (?,?,?);";
+	  connection.query(bookmarkINS, [res[0].id,bookID,false]);	
   	} else if(ins == false) {
 	  var bookmarkDEL = "DELETE FROM bookmarks WHERE id=? AND bookmarkID=?";
 	  connection.query(bookmarkDEL, [res[0].id, bookID]);
@@ -275,15 +275,17 @@ app.post("/api/watchlist", (req, res) => {
   var getBookmarked = "SELECT * FROM bookmarks WHERE id=?";
   connection.query(getBookmarked, [uid], async (req, resp) => {
     let ids = resp.map((i) => ({
-	id: i.bookmarkID
+	id: i.bookmarkID,
+	statusOf: i.status,
     }))
   
     var action = () => {
 	  Promise.all(
 	  ids.map(async(u) => {
     	  	let mData = await axios.get('https://api.themoviedb.org/3/movie/'+u.id+'?api_key='+process.env.API_KEY_MOVIES);
-
-		return mData.data;
+		let statusOf = u.statusOf;
+		
+		return [mData.data, statusOf];
     	  })
 	  ).then((values) => {
 	  	res.send(values)
@@ -291,6 +293,14 @@ app.post("/api/watchlist", (req, res) => {
     }
 	action();
   })
+})
+
+app.post("/api/updateStatus", (req, res) => {
+	let setStatus = req.body.statusInfo;
+	let uid = req.body.uid;
+	let bid = req.body.bid;
+	var updateStats = "UPDATE bookmarks SET status=? WHERE id=? AND bookmarkID=?";
+	connection.query(updateStats, [setStatus, uid, bid])
 })
 
 app.get("/api/posts", verifyToken, (req, res) => {
