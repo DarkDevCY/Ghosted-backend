@@ -6,16 +6,16 @@ const bodyParser = require("body-parser");
 const async = require("async");
 const nodemailer = require("nodemailer");
 const sgMail = require("@sendgrid/mail");
-var {DateTime} = require("luxon");
+const {DateTime} = require("luxon");
 const sgTransport = require("nodemailer-sendgrid-transport");
-var mysql = require("mysql");
+const mysql = require("mysql");
 const axios = require("axios");
 require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json());
 
-var connection = mysql.createConnection({
+const connection = mysql.createConnection({
   host: "localhost",
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
@@ -31,8 +31,8 @@ app.get("/api", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  let username = req.body.username;
-  let compareUsername = "SELECT * FROM ghosted WHERE username=?";
+  const username = req.body.username;
+  const compareUsername = "SELECT * FROM ghosted WHERE username=?";
 
   connection.query(compareUsername, [username], async function (err, results) {
     if (err) throw err;
@@ -47,11 +47,11 @@ app.post("/register", (req, res) => {
         };
 
         // Get data into DB
-        let username = user.name;
-        let pass = user.password;
-        let mail = user.email;
+        const username = user.name;
+        const pass = user.password;
+        const mail = user.email;
 
-        let sqlQuery =
+        const sqlQuery =
           "INSERT INTO `ghosted` (`username`, `email`, `password`) VALUES (?,?,?);";
 
         connection.query(
@@ -80,8 +80,8 @@ app.post("/register", (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  let userID = req.body.username;
-  var getDataLogin = "SELECT * FROM ghosted WHERE username=?";
+  const userID = req.body.username;
+  const getDataLogin = "SELECT * FROM ghosted WHERE username=?";
 
   connection.query(getDataLogin, [userID], async function (err, results) {
 	  if(err) throw err;
@@ -111,27 +111,27 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/forgot/pass", async (req, res, next) => {
-   let email = req.body.email;
+   const email = req.body.email;
    async.waterfall([
     function (done) {
 	crypto.randomBytes(3,function (err, buf) {
-	 var token = buf.toString("hex");
+	 const token = buf.toString("hex");
 	 done(err, token);
        });
     },
     function (token, done) {
-     let resetPasswordToken = token;
-     let resetPasswordExpires = Math.floor(Date.now() / 1000); // 1 hour
+     const resetPasswordToken = token;
+     const resetPasswordExpires = Math.floor(Date.now() / 1000); // 1 hour
 	    console.log(resetPasswordExpires);
 	
-	let addToken = 'UPDATE ghosted SET resetPasswordToken=?, resetPasswordExpires=? WHERE email=?;'
+	const addToken = 'UPDATE ghosted SET resetPasswordToken=?, resetPasswordExpires=? WHERE email=?;'
 	connection.query(addToken, [resetPasswordToken, resetPasswordExpires, email], function(err, result) {
 		if(err) throw err;
 		console.log('Added token and expiry date for ' + email);
 	})
         sgMail.setApiKey(process.env.API_KEY_SENDMAIL);
 
-	var options = {
+	const options = {
 	 service: 'SendGrid',
          auth: {
              api_user: process.env.USER_SENDMAIL,
@@ -139,9 +139,9 @@ app.post("/forgot/pass", async (req, res, next) => {
   	 }
         }
 
-     var client = nodemailer.createTransport(sgTransport(options));
+     const client = nodemailer.createTransport(sgTransport(options));
 
-     var mailOptions = {
+     const mailOptions = {
        from: 'info@mariosk.dev',
        to: email,
        subject: 'Ghosted Change Password',
@@ -153,7 +153,7 @@ app.post("/forgot/pass", async (req, res, next) => {
 	     "<p>&copy; Ghosted | 2020</p>"
      };
 
-     var userCheck = "SELECT * FROM ghosted WHERE email=?";
+     const userCheck = "SELECT * FROM ghosted WHERE email=?";
      connection.query(userCheck, [email], function(err, result) {
      if(err) throw err;   
      console.log(result);
@@ -175,19 +175,19 @@ app.post("/forgot/pass", async (req, res, next) => {
 })
 
 app.post("/forgot/verify", async (req,res) => {
-	let currentTime = Math.floor(Date.now() / 1000);
-	let token = req.body.token;
+	const currentTime = Math.floor(Date.now() / 1000);
+	const token = req.body.token;
 	console.log(currentTime, token);
 
-	var selectData = "SELECT * FROM ghosted WHERE resetPasswordToken=?;";
+	const selectData = "SELECT * FROM ghosted WHERE resetPasswordToken=?;";
 	connection.query(selectData, [token], function(err, result) {
 	   if(err) throw err;
 	   
 	   if(result.length < 1) {
 	      res.sendStatus(404);
 	   } else if(result[0].resetPasswordExpires+3600 > currentTime) {
-	      var updatePassword = "UPDATE ghosted SET password=? WHERE resetPasswordToken=?;";
-	      let pass = req.body.password;
+	      const updatePassword = "UPDATE ghosted SET password=? WHERE resetPasswordToken=?;";
+	      const pass = req.body.password;
 
 	      async function insertPassword() {
 	      	const hashedPass = await bcrypt.hash(pass, 10);	       
@@ -198,17 +198,17 @@ app.post("/forgot/verify", async (req,res) => {
 	      		});
 		sgMail.setApiKey(process.env.API_KEY_SENDMAIL);
 
-		var options = {
+		const options = {
 			service: "SendGrid",
 			auth: {
 			   api_user: process.env.USER_SENDMAIL,
 			   api_key: process.env.PASS_SENDMAIL,
 	      		}
 		}
-		      var client = nodemailer.createTransport(sgTransport(options));
+		      const client = nodemailer.createTransport(sgTransport(options));
 		     
-		      var email = result[0].email;
-		      var mailChanged = {
+		      const email = result[0].email;
+		      const mailChanged = {
 			      from: "info@mariosk.dev",
 			      to: email,
 			      subject: "Ghosted - Password Changed",
@@ -228,8 +228,8 @@ app.post("/forgot/verify", async (req,res) => {
 		   insertPassword();
 		   
 	   } else if(result[0].resetPasswordExpires+3600 < currentTime) {
-		  var removeToken = "UPDATE ghosted SET resetPasswordToken=?, resetPasswordExpires=? WHERE email=?;";
-		  var email = result[0].email;
+		  const removeToken = "UPDATE ghosted SET resetPasswordToken=?, resetPasswordExpires=? WHERE email=?;";
+		  const email = result[0].email;
 		  connection.query(removeToken, [null, null, email]);
 		  console.log('Set to NULL');
 		  res.status(403).send({response: "The token is expired.", statusC: "403"});
@@ -238,27 +238,30 @@ app.post("/forgot/verify", async (req,res) => {
 })
 
 app.post("/api/bookmarked", (req, res) => {
-  var getID = "SELECT * FROM ghosted WHERE email=?";
-  var ins = new Boolean(req.body.bookmarked)
-  var bookID = req.body.bookmarkID;
-  console.log(ins)
-	
-  connection.query(getID, [req.body.email], (req, res) => {
-	
-	if(ins == true) {
-	  var bookmarkINS = "INSERT INTO bookmarks (id, bookmarkID, status) VALUES (?,?,?);";
-	  connection.query(bookmarkINS, [res[0].id,bookID,false]);	
-  	} else if(ins == false) {
-	  var bookmarkDEL = "DELETE FROM bookmarks WHERE id=? AND bookmarkID=?";
-	  connection.query(bookmarkDEL, [res[0].id, bookID]);
+  const bookID = req.body.bookmarkID;
+  const uid = req.body.uid;
+  const ins = req.body.bookmarked
+	console.log(ins)
+	if(ins===true) {
+		const insertTo = "INSERT INTO bookmarks (id, bookmarkID, status) VALUES (?,?,?);";
+		connection.query(insertTo, [uid, bookID, false], (error) => {
+			if(error) console.error(error)
+			res.end();
+		})
+  	} else if(ins===false){
+		const deleteFrom = "DELETE FROM bookmarks WHERE id=? AND bookmarkID=?;";
+		connection.query(deleteFrom, [uid, bookID], (error) => {
+			if(error) console.error(error);
+
+			res.end();
+		});
 	}
-  })
 })
 
 app.post("/api/checkBookmark", (req, res) => {
-	var checkID = req.body.uid;
-	var MID = req.body.mid;
-	var checkDB = "SELECT * FROM bookmarks WHERE id=? AND bookmarkID=?";
+	const checkID = req.body.uid;
+	const MID = req.body.mid;
+	const checkDB = "SELECT * FROM bookmarks WHERE id=? AND bookmarkID=?";
 	console.log(checkID)
 	connection.query(checkDB, [checkID, MID], (req, results) => {
 		console.log(results)
@@ -271,8 +274,8 @@ app.post("/api/checkBookmark", (req, res) => {
 });
 
 app.post("/api/watchlist", (req, res) => {
-  var uid = req.body.uid;
-  var getBookmarked = "SELECT * FROM bookmarks WHERE id=?";
+  const uid = req.body.uid;
+  const getBookmarked = "SELECT * FROM bookmarks WHERE id=?";
   connection.query(getBookmarked, [uid], async (req, resp) => {
     let ids = resp.map((i) => ({
 	id: i.bookmarkID,
@@ -296,10 +299,10 @@ app.post("/api/watchlist", (req, res) => {
 })
 
 app.post("/api/updateStatus", (req, res) => {
-	let setStatus = req.body.statusInfo;
-	let uid = req.body.uid;
-	let bid = req.body.bid;
-	var updateStats = "UPDATE bookmarks SET status=? WHERE id=? AND bookmarkID=?";
+	const setStatus = req.body.statusInfo;
+	const uid = req.body.uid;
+	const bid = req.body.bid;
+	const updateStats = "UPDATE bookmarks SET status=? WHERE id=? AND bookmarkID=?";
 	connection.query(updateStats, [setStatus, uid, bid])
 })
 
