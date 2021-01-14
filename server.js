@@ -237,11 +237,12 @@ app.post("/forgot/verify", async (req,res) => {
 	})
 })
 
+/* Movie Watchlist */
 app.post("/api/bookmarked", (req, res) => {
   const bookID = req.body.bookmarkID;
   const uid = req.body.uid;
   const ins = req.body.bookmarked
-	console.log(ins)
+
 	if(ins===true) {
 		const insertTo = "INSERT INTO bookmarks (id, bookmarkID, status) VALUES (?,?,?);";
 		connection.query(insertTo, [uid, bookID, false], (error) => {
@@ -304,6 +305,74 @@ app.post("/api/updateStatus", (req, res) => {
 	const bid = req.body.bid;
 	const updateStats = "UPDATE bookmarks SET status=? WHERE id=? AND bookmarkID=?";
 	connection.query(updateStats, [setStatus, uid, bid])
+})
+
+/* TV Watchlist */
+app.post("/api/bookmarkedTV", (req, res) => {
+  const tvID = req.body.tvID;
+  const uid = req.body.uid;
+  const ins = req.body.bookmarked;
+  console.log(ins)
+  if (ins === true) {
+    const insertTV = "INSERT INTO bookmarksTV (id, tvID, status) VALUES (?,?,?);";
+    connection.query(insertTV, [uid, tvID, false], (error) => {
+      if (error) console.error(error)
+      res.end();
+    })
+  } else if(ins===false) {
+    const removeTV = "DELETE FROM bookmarksTV WHERE id=? AND tvID=?;";
+    connection.query(removeTV, [uid, tvID], (error) => {
+      if (error) console.error(error)
+      res.end();
+    })
+  }
+})
+app.post("/api/checkBookmarkTV", (req, res) => {
+	const tvID = req.body.tvid;
+  const uid = req.body.uid;
+	console.log(tvID, uid)
+  const checkDB = "SELECT * FROM bookmarksTV WHERE id=? AND tvID=?";
+	connection.query(checkDB, [uid, tvID], (req, results) => {
+		console.log(results)
+		if(results.length < 1) {
+			res.status(200).send({booked: false});
+		} else {
+			res.status(200).send({booked: true});
+		}
+	})
+});
+
+app.post("/api/watchlistTV", (req, res) => {
+  const uid = req.body.uid;
+  const getBookmarkedTV = "SELECT * FROM bookmarksTV WHERE id=?";
+  connection.query(getBookmarkedTV, [uid], async (req, resp) => {
+    let ids = resp.map((i) => ({
+      id: i.tvID,
+      statusOf: i.status,
+    }))
+  
+    var action = () => {
+	  Promise.all(
+	  ids.map(async(u) => {
+    	  	let mData = await axios.get('https://api.themoviedb.org/3/tv/'+u.id+'?api_key='+process.env.API_KEY_MOVIES);
+		let statusOf = u.statusOf;
+		
+		return [mData.data, statusOf];
+    	  })
+	  ).then((values) => {
+	  	res.send(values)
+	  })
+    }
+	action();
+  })
+})
+
+app.post("/api/updateStatusTV", (req, res) => {
+	const setStatus = req.body.statusInfo;
+	const uid = req.body.uid;
+	const tid = req.body.tid;
+	const updateStats = "UPDATE bookmarksTV SET status=? WHERE id=? AND tvID=?";
+	connection.query(updateStats, [setStatus, uid, tid])
 })
 
 app.get("/api/posts", verifyToken, (req, res) => {

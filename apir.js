@@ -53,7 +53,7 @@ app.post("/api/searchMovies", (req, res) => {
 app.post("/api/searchTV", (req, res) => {
 	const searchTV = async() => {
 		const searchTVResponse = await axios.get('https://api.themoviedb.org/3/search/tv?api_key='+process.env.API_KEY_MOVIES+'&query='+req.body.searchData);
-		return res.json(searchTVResponse.data, req.body.searchData);
+		return res.json(searchTVResponse.data);
 	};
 	searchTV()
 })
